@@ -1,0 +1,108 @@
+'****************************************************************
+'*  Name    : UNTITLED.BAS                                      *
+'*  Author  : [select VIEW...EDITOR OPTIONS]                    *
+'*  Notice  : Copyright (c) 2013 [select VIEW...EDITOR OPTIONS] *
+'*          : All Rights Reserved                               *
+'*  Date    : 17/05/2013                                        *
+'*  Version : 1.0                                               *
+'*  Notes   :                                                   *
+'*          :                                                   *
+'****************************************************************
+
+INCLUDE "modedefs.bas"
+DEFINE OSC 10               '20Mhz Oscillator was used
+CMCON = 7
+
+OPTION_REG.0 = 1
+OPTION_REG.1 = 1
+OPTION_REG.2 = 1
+
+OPTION_REG.3 = 0
+OPTION_REG.5 = 0
+OPTION_REG.7 = 1
+
+'#################################################################
+TRISA.3 = 1         'PIN 2 Entrada Z
+TRISA.2 = 1         'PIN 1 Entrada Varios
+TRISA.1 = 1         'PIN 18 Entrada A
+TRISA.0 = 1         'PIN 17 Entrada B
+TRISA.4 = 1         'PIN 3 select H/L Byte
+TRISA.5 = 1         'PIN 4 Puesta a 0 encoder
+
+TRISB  = 0 ' Puerto B como salidas.
+
+x var  word         ' Contador encoder.
+xLatch  var word
+tmpLatch    var bit
+Aux var Byte        ' Se almacenará el valor anterior de RA3 y RA2, hasta la siguiente comparación.
+Enc var Byte        ' Se almacenará el valor actual de RA3 y RA2, hasta la siguiente comparación.
+tempX   var byte
+tempXm  var byte
+
+Start:              'Inicio. LLamarla implica Soft-Reset
+
+Clear               'Inicializar todas las variables a cero
+x = 32000
+PORTB=0             'Inicialmente ponemos a cero el puerto B.
+pause 1000
+
+Main:
+
+    Aux = Enc                           ' Igualamos 'AUX' y 'ENC' para luego comparar cuando cambie 'ENC'.               
+    Enc = (PORTA & 3)                   ' Aislamos RA2 y RA3 como un número de 2 bits y se carga en la variable 'ENC'.
+    
+    If Aux = 2 And Enc = 3 Then         ' Si en la comparación hay flanco de subida, incrementamos X.
+        if tempX = 1 then
+            x = x + 1
+            tempX = 0
+        else
+            tempX = 1
+        endif
+    endif                                                                   
+    
+    If Aux = 3 And Enc = 2 Then         ' Si en la comparación hay flanco de bajada, decrementamos X.
+        if tempXm = 1 then
+            x = x - 1
+            tempXm = 0
+        else
+            tempXm = 1
+            tempBx = 2
+        endif
+    endif                       
+
+espera:
+    if porta.5 = 1 then    
+        if porta.4 = 1 then
+            portb = x.lowbyte
+            goto espera
+        else
+            portb = x.highbyte
+            goto espera
+        endif
+    endif
+    
+    goto main
+    
+    
+    if (porta.4 = 1) and (tmplatch = 0) then
+        tmplatch = 1
+        xlatch = x
+        portb = xlatch.lowbyte
+    endif
+    
+    if porta.4 = 0 then
+        tmplatch = 0
+    endif
+    
+    if porta.5 = 1 then
+        portb = xlatch.highbyte
+    else
+        portb = xlatch.lowbyte
+    endif
+
+    goto main
+    
+    
+end
+
+
